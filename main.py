@@ -1,5 +1,5 @@
 import telebot
-from opengsq.protocols import Goldsource
+from opengsq import Goldsource
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 
@@ -14,7 +14,7 @@ SERVER_PORT = 27015
 @bot.message_handler(commands=['info'])
 def send_server_info(message):
     try:
-        # Подключаемся к серверу CS 1.6 по протоколу A2S
+        # Подключаемся к серверу CS 1.6
         gs = Goldsource(SERVER_IP, SERVER_PORT, timeout=3.0)
         info = gs.get_info()
         players_data = gs.get_players()
@@ -59,5 +59,8 @@ def run_web_server():
     server.serve_forever()
 
 if __name__ == '__main__':
+    threading.Thread(target=run_web_server, daemon=True).start()
+    bot.infinity_polling()
+
     threading.Thread(target=run_web_server, daemon=True).start()
     bot.infinity_polling()
