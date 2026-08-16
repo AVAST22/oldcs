@@ -46,16 +46,13 @@ def send_server_info(message):
     if info:
         # Красивое оформление на русском языке с зеленым кружком
         text = f"👑 <b>[OLD] SCHOOL ™</b>\n"
-        text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
         text += f"🟢 <code>{SERVER_IP}:{SERVER_PORT}</code>\n"
         text += f"🗺 <b>Карта:</b> {info['map']}\n"
         text += f"👥 <b>Игроки:</b> {info['players']}/{info['max_players']}\n"
-        text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
         text += f"🎮 <i>Заходи и покажи свой скилл!</i>"
     else:
         # Желтый кружок, если сервер действительно выключен
         text = f"👑 <b>[OLD] SCHOOL ™</b>\n"
-        text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
         text += f"🟡 <code>{SERVER_IP}:{SERVER_PORT}</code>\n\n"
         text += "❌ <b>Сервер временно недоступен или выключен.</b>"
 
