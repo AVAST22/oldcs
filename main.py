@@ -7,13 +7,12 @@ import threading
 TOKEN = "8246666424:AAEhc4k0HzzV_NepsQokVZ54bUp90n-mpk0"
 bot = telebot.TeleBot(TOKEN)
 
-SERVER_IP = "91.211.118.111"
-SERVER_PORT = 27015
+# Ваш актуальный IP и ПОРТ сервера CS 1.6
+SERVER_IP = "91.211.118.90"
+SERVER_PORT = 27016
 
 def query_gold_source(ip, port):
     addr = (ip, port)
-    
-    # Запрос A2S_INFO
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(2.5)
     try:
@@ -27,20 +26,17 @@ def query_gold_source(ip, port):
     if not data.startswith(b'\xFF\xFF\xFF\xFFI'):
         return None
 
-    # Парсинг A2S_INFO ответа
     try:
         payload = data[5:]
-        protocol = payload[0]
+        protocol = payload
         payload = payload[1:]
         
-        # Чтение строк (название сервера, карта, папка, игра)
         server_name, payload = payload.split(b'\x00', 1)
         map_name, payload = payload.split(b'\x00', 1)
         folder, payload = payload.split(b'\x00', 1)
         game, payload = payload.split(b'\x00', 1)
         
-        # Чтение числовых данных
-        app_id = struct.unpack('<H', payload[:2])[0]
+        app_id = struct.unpack('<H', payload[:2])
         players = payload[2]
         max_players = payload[3]
         
@@ -57,19 +53,22 @@ def send_server_info(message):
     info = query_gold_source(SERVER_IP, SERVER_PORT)
     
     if info:
-        text = f"🎮 [OLD] SCHOOL ™\n"
-        text += f"🌍 IP: {SERVER_IP}:{SERVER_PORT}\n"
-        text += f"🗺 Карта: {info['map']}\n\n"
-        text += f"Игроки: {info['players']}/{info['max_players']}\n"
-        text += "📝 Для просмотра ников зайдите на сервер!"
+        # Красивое и стильное оформление, которое вы просили
+        text = f"👑 <b>[OLD] SCHOOL ™</b>\n"
+        text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+        text += f"🟢 <code>{SERVER_IP}:{SERVER_PORT}</code>\n"
+        text += f"🗺 <b>Карта:</b> {info['map']}\n"
+        text += f"👥 <b>Гравців:</b> {info['players']}/{info['max_players']}\n"
+        text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+        text += f"🎮 <i>Заходь та покажи свой скілл!</i>"
     else:
-        text = f"🎮 [OLD] SCHOOL ™\n"
-        text += f"🌍 IP: {SERVER_IP}:{SERVER_PORT}\n\n"
-        text += "❌ Сервер временно недоступен или выключен."
+        text = f"👑 <b>[OLD] SCHOOL ™</b>\n"
+        text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
+        text += f"🟡 <code>{SERVER_IP}:{SERVER_PORT}</code>\n\n"
+        text += "❌ <b>Сервер тимчасово недоступний або вимкнений.</b>"
 
-    bot.reply_to(message, text)
+    bot.send_message(message.chat.id, text, parse_mode="HTML")
 
-# Веб-сервер заглушка для Render
 class WebServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
