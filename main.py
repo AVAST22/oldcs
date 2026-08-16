@@ -1,74 +1,67 @@
 import telebot
-import socket
-import struct
+import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 
 TOKEN = "8246666424:AAEhc4k0HzzV_NepsQokVZ54bUp90n-mpk0"
 bot = telebot.TeleBot(TOKEN)
 
-# Ваш актуальный IP и ПОРТ сервера CS 1.6
+# Данные вашего сервера CS 1.6
 SERVER_IP = "91.211.118.90"
-SERVER_PORT = 27016
+SERVER_PORT = "27016"
 
-def query_gold_source(ip, port):
-    addr = (ip, port)
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(2.5)
+def get_server_status(ip, port):
+    # Метод 1: Запрос через бесплатное API мониторинга
     try:
-        sock.sendto(b'\xFF\xFF\xFF\xFFTSource Engine Query\x00', addr)
-        data, _ = sock.recvfrom(4096)
-    except socket.timeout:
-        return None
-    finally:
-        sock.close()
-
-    if not data.startswith(b'\xFF\xFF\xFF\xFFI'):
-        return None
-
+        url = f"https://loqup.ru{ip}:{port}"
+        response = requests.get(url, timeout=4.0)
+        if response.status_code == 200:
+            data = response.json()
+            return {
+                "map": data.get("map", "Неизвестно"),
+                "players": data.get("players", 0),
+                "max_players": data.get("maxplayers", 32)
+            }
+    except Exception:
+        pass
+    
+    # Метод 2: Резервное API, если первое не ответило
     try:
-        payload = data[5:]
-        protocol = payload
-        payload = payload[1:]
-        
-        server_name, payload = payload.split(b'\x00', 1)
-        map_name, payload = payload.split(b'\x00', 1)
-        folder, payload = payload.split(b'\x00', 1)
-        game, payload = payload.split(b'\x00', 1)
-        
-        app_id = struct.unpack('<H', payload[:2])
-        players = payload[2]
-        max_players = payload[3]
-        
-        return {
-            "map": map_name.decode('utf-8', errors='ignore'),
-            "players": players,
-            "max_players": max_players
-        }
+        url_alt = f"https://cs-monitoring.ru{ip}&port={port}"
+        res = requests.get(url_alt, timeout=4.0)
+        if res.status_code == 200:
+            data = res.json().get("normal", {})
+            return {
+                "map": data.get("map", "Неизвестно"),
+                "players": data.get("players", 0),
+                "max_players": data.get("maxplayers", 32)
+            }
     except Exception:
         return None
 
 @bot.message_handler(commands=['info'])
 def send_server_info(message):
-    info = query_gold_source(SERVER_IP, SERVER_PORT)
+    info = get_server_status(SERVER_IP, SERVER_PORT)
     
     if info:
-        # Красивое и стильное оформление, которое вы просили
+        # Красивое оформление на русском языке с зеленым кружком
         text = f"👑 <b>[OLD] SCHOOL ™</b>\n"
         text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
         text += f"🟢 <code>{SERVER_IP}:{SERVER_PORT}</code>\n"
         text += f"🗺 <b>Карта:</b> {info['map']}\n"
-        text += f"👥 <b>Гравців:</b> {info['players']}/{info['max_players']}\n"
+        text += f"👥 <b>Игроки:</b> {info['players']}/{info['max_players']}\n"
         text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
-        text += f"🎮 <i>Заходь та покажи свой скілл!</i>"
+        text += f"🎮 <i>Заходи и покажи свой скилл!</i>"
     else:
+        # Желтый кружок, если сервер действительно выключен
         text = f"👑 <b>[OLD] SCHOOL ™</b>\n"
         text += f"▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\n"
         text += f"🟡 <code>{SERVER_IP}:{SERVER_PORT}</code>\n\n"
-        text += "❌ <b>Сервер тимчасово недоступний або вимкнений.</b>"
+        text += "❌ <b>Сервер временно недоступен или выключен.</b>"
 
     bot.send_message(message.chat.id, text, parse_mode="HTML")
 
+# Заглушка для Render, чтобы он не отключал бота
 class WebServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
