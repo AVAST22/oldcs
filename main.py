@@ -2,6 +2,7 @@ import telebot
 import requests
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
+import re
 
 TOKEN = "8246666424:AAEhc4k0HzzV_NepsQokVZ54bUp90n-mpk0"
 bot = telebot.TeleBot(TOKEN)
@@ -10,38 +11,31 @@ bot = telebot.TeleBot(TOKEN)
 SERVER_IP = "91.211.118.90"
 SERVER_PORT = "27016"
 
-# Рабочая картинка-заглушка (замените на свою, если эта не подходит)
+# Рабочая картинка-заглушка (можете заменить на свою прямую ссылку)
 SERVER_IMAGE_URL = "https://i.postimg.cc/3wh9H2pK/Chat-GPT-Image-16-avg-2026-g-22-11-04.png"
 
 def get_server_status(ip, port):
-    # Исправлен URL: добавлен /api/ или правильный путь для loqup
     try:
-        url = f"https://loqup.ru{ip}&port={port}"
-        response = requests.get(url, timeout=3.0)
+        # Запрос к официальному публичному мониторингу GameHost для вашего сервера (ID: 5785)
+        url = "https://gamehost.com.ua"
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        response = requests.get(url, headers=headers, timeout=3.0)
+        
         if response.status_code == 200:
-            data = response.json()
+            html_text = response.text
+            
+            # Извлекаем карту и игроков прямо со страницы хостинга
+            map_search = re.search(r'Карта:.*?<b>(.*?)</b>', html_text, re.IGNORECASE)
+            players_search = re.search(r'Игроки:.*?<b>(\d+)/(\d+)</b>', html_text, re.IGNORECASE)
+            
             return {
-                "map": data.get("map", "Неизвестно"),
-                "players": data.get("players", 0),
-                "max_players": data.get("maxplayers", 32)
+                "map": map_search.group(1).strip() if map_search else "Неизвестно",
+                "players": int(players_search.group(1)) if players_search else 0,
+                "max_players": int(players_search.group(2)) if players_search else 32
             }
     except Exception:
         pass
-
-    # Исправлен URL для cs-monitoring
-    try:
-        url_alt = f"https://cs-monitoring.ru{ip}&port={port}"
-        res = requests.get(url_alt, timeout=3.0)
-        if res.status_code == 200:
-            data = res.json().get("normal", {})
-            return {
-                "map": data.get("map", "Неизвестно"),
-                "players": data.get("players", 0),
-                "max_players": data.get("maxplayers", 32)
-            }
-    except Exception:
-        pass
-
+        
     return None
 
 @bot.message_handler(commands=['info'])
@@ -60,10 +54,8 @@ def send_server_info(message):
         text += "⚠️ <b>Сервер временно недоступен или выключен.</b>"
 
     try:
-        # Пытаемся отправить с картинкой
         bot.send_photo(message.chat.id, SERVER_IMAGE_URL, caption=text, parse_mode="HTML")
     except Exception:
-        # Если картинка недоступна, отправляем просто текст
         bot.send_message(message.chat.id, text, parse_mode="HTML")
 
 class WebServer(BaseHTTPRequestHandler):
@@ -71,6 +63,11 @@ class WebServer(BaseHTTPRequestHandler):
         self.send_response(200)
         self.end_headers()
         self.wfile.write(b"Bot is alive!")
+
+    def do_HEAD(self):
+        # Исправление для Render: теперь хостинг сможет проверять статус бота без ошибок
+        self.send_response(200)
+        self.end_headers()
 
 def run_web_server():
     server = HTTPServer(('0.0.0.0', 10000), WebServer)
@@ -80,3 +77,4 @@ if __name__ == '__main__':
     threading.Thread(target=run_web_server, daemon=True).start()
     print("Бот успешно запущен...")
     bot.infinity_polling()
+
