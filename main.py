@@ -1,53 +1,75 @@
 import telebot
-from opengsq import Goldsource
+import socket
+import struct
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 
-# Токен вашего бота из BotFather
 TOKEN = "8246666424:AAEhc4k0HzzV_NepsQokVZ54bUp90n-mpk0"
 bot = telebot.TeleBot(TOKEN)
 
-# IP-адрес вашего сервера CS 1.6
 SERVER_IP = "91.211.118.111"
 SERVER_PORT = 27015
 
+def query_gold_source(ip, port):
+    addr = (ip, port)
+    
+    # Запрос A2S_INFO
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(2.5)
+    try:
+        sock.sendto(b'\xFF\xFF\xFF\xFFTSource Engine Query\x00', addr)
+        data, _ = sock.recvfrom(4096)
+    except socket.timeout:
+        return None
+    finally:
+        sock.close()
+
+    if not data.startswith(b'\xFF\xFF\xFF\xFFI'):
+        return None
+
+    # Парсинг A2S_INFO ответа
+    try:
+        payload = data[5:]
+        protocol = payload[0]
+        payload = payload[1:]
+        
+        # Чтение строк (название сервера, карта, папка, игра)
+        server_name, payload = payload.split(b'\x00', 1)
+        map_name, payload = payload.split(b'\x00', 1)
+        folder, payload = payload.split(b'\x00', 1)
+        game, payload = payload.split(b'\x00', 1)
+        
+        # Чтение числовых данных
+        app_id = struct.unpack('<H', payload[:2])[0]
+        players = payload[2]
+        max_players = payload[3]
+        
+        return {
+            "map": map_name.decode('utf-8', errors='ignore'),
+            "players": players,
+            "max_players": max_players
+        }
+    except Exception:
+        return None
+
 @bot.message_handler(commands=['info'])
 def send_server_info(message):
-    try:
-        # Подключаемся к серверу CS 1.6
-        gs = Goldsource(SERVER_IP, SERVER_PORT, timeout=3.0)
-        info = gs.get_info()
-        players_data = gs.get_players()
-
-        # Формируем список игроков
-        player_list = []
-        if players_data:
-            for p in players_data:
-                name = p.get('name', '').strip()
-                if name:  # Игнорируем пустые имена
-                    player_list.append(f"• {name}")
-
-        # Собираем красивый текст сообщения
+    info = query_gold_source(SERVER_IP, SERVER_PORT)
+    
+    if info:
         text = f"🎮 [OLD] SCHOOL ™\n"
         text += f"🌍 IP: {SERVER_IP}:{SERVER_PORT}\n"
-        text += f"🗺 Карта: {info.get('map', 'Неизвестно')}\n\n"
-        text += f"Игроки: {info.get('players', 0)}/{info.get('max_players', 32)}\n"
-
-        if player_list:
-            text += "\n".join(player_list)
-        else:
-            text += "🚫 Игроки отсутствуют"
-
-    except Exception as e:
-        # Если сервер выключен или недоступен
+        text += f"🗺 Карта: {info['map']}\n\n"
+        text += f"Игроки: {info['players']}/{info['max_players']}\n"
+        text += "📝 Для просмотра ников зайдите на сервер!"
+    else:
         text = f"🎮 [OLD] SCHOOL ™\n"
         text += f"🌍 IP: {SERVER_IP}:{SERVER_PORT}\n\n"
         text += "❌ Сервер временно недоступен или выключен."
 
-    # Отправляем ответ в группу
     bot.reply_to(message, text)
 
-# Заглушка-сервер, чтобы Render считал приложение активным
+# Веб-сервер заглушка для Render
 class WebServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -59,8 +81,5 @@ def run_web_server():
     server.serve_forever()
 
 if __name__ == '__main__':
-    threading.Thread(target=run_web_server, daemon=True).start()
-    bot.infinity_polling()
-
     threading.Thread(target=run_web_server, daemon=True).start()
     bot.infinity_polling()
