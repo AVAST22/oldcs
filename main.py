@@ -1,5 +1,5 @@
 import telebot
-from opengsq.protocols import GoldSource
+from opengsq.protocols import Goldsource
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 
@@ -7,15 +7,15 @@ import threading
 TOKEN = "8246666424:AAEhc4k0HzzV_NepsQokVZ54bUp90n-mpk0"
 bot = telebot.TeleBot(TOKEN)
 
-# Новый IP-адрес вашего сервера CS 1.6
+# IP-адрес вашего сервера CS 1.6
 SERVER_IP = "91.211.118.111"
 SERVER_PORT = 27015
 
 @bot.message_handler(commands=['info'])
 def send_server_info(message):
     try:
-        # Подключаемся к новому серверу CS 1.6 по протоколу A2S
-        gs = GoldSource(SERVER_IP, SERVER_PORT, timeout=3.0)
+        # Подключаемся к серверу CS 1.6 по протоколу A2S
+        gs = Goldsource(SERVER_IP, SERVER_PORT, timeout=3.0)
         info = gs.get_info()
         players_data = gs.get_players()
 
@@ -28,7 +28,7 @@ def send_server_info(message):
                     player_list.append(f"• {name}")
 
         # Собираем красивый текст сообщения
-        text = f"🎮 [OLD] SCHOOL ™ \n"
+        text = f"🎮 [OLD] SCHOOL ™\n"
         text += f"🌍 IP: {SERVER_IP}:{SERVER_PORT}\n"
         text += f"🗺 Карта: {info.get('map', 'Неизвестно')}\n\n"
         text += f"Игроки: {info.get('players', 0)}/{info.get('max_players', 32)}\n"
@@ -39,7 +39,7 @@ def send_server_info(message):
             text += "🚫 Игроки отсутствуют"
 
     except Exception as e:
-        # Если новый сервер выключен или недоступен
+        # Если сервер выключен или недоступен
         text = f"🎮 [OLD] SCHOOL ™\n"
         text += f"🌍 IP: {SERVER_IP}:{SERVER_PORT}\n\n"
         text += "❌ Сервер временно недоступен или выключен."
