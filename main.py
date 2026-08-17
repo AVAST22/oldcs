@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 # =========================================================
 
 # Telegram Bot Token берём из Render Environment
-TOKEN = os.environ.get("BOT_TOKEN")
+TOKEN = os.environ.get("8246666424:AAEhc4k0HzzV_NepsQokVZ54bUp90n-mpk0")
 
 if not TOKEN:
     raise RuntimeError(
@@ -33,7 +33,7 @@ SERVER_PORT = "27016"
 SERVER_ID = "5785"
 
 # API ключ GameHost берём из Render Environment
-GAMEHOST_API_KEY = os.environ.get("GAMEHOST_API_KEY")
+GAMEHOST_API_KEY = os.environ.get("ae8afe39e1aff19813bb264d5b52affd")
 
 if not GAMEHOST_API_KEY:
     raise RuntimeError(
@@ -75,7 +75,7 @@ PORT = int(
 # Секрет Telegram Webhook
 WEBHOOK_SECRET = os.environ.get(
     "WEBHOOK_SECRET",
-    "oldcsinua_webhook_secret"
+    "oldcsinua_webhook_2026"
 )
 
 
