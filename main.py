@@ -1,4 +1,3 @@
-import os
 import time
 import threading
 import requests
@@ -11,39 +10,37 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 # НАСТРОЙКИ
 # =========================================================
 
-# Telegram Bot Token берём из Render Environment
-TOKEN = os.environ.get("8246666424:AAEhc4k0HzzV_NepsQokVZ54bUp90n-mpk0")
+# =========================================================
+# 1. TELEGRAM BOT TOKEN
+# =========================================================
 
-if not TOKEN:
-    raise RuntimeError(
-        "ОШИБКА: не задан BOT_TOKEN в Environment Variables"
-    )
-
-bot = telebot.TeleBot(TOKEN)
+TELEGRAM_TOKEN = "8246666424:AAEhc4k0HzzV_NepsQokVZ54bUp90n-mpk0"
 
 
 # =========================================================
-# CS 1.6 СЕРВЕР
+# 2. GAMEHOST API KEY
+# =========================================================
+
+GAMEHOST_API_KEY = "ae8afe39e1aff19813bb264d5b52affd"
+
+
+# =========================================================
+# 3. GAMEHOST SERVER ID
+# =========================================================
+
+SERVER_ID = "5785"
+
+
+# =========================================================
+# 4. CS 1.6 SERVER
 # =========================================================
 
 SERVER_IP = "91.211.118.90"
 SERVER_PORT = "27016"
 
-# ID сервера GameHost
-SERVER_ID = "5785"
-
-# API ключ GameHost берём из Render Environment
-GAMEHOST_API_KEY = os.environ.get("ae8afe39e1aff19813bb264d5b52affd")
-
-if not GAMEHOST_API_KEY:
-    raise RuntimeError(
-        "ОШИБКА: не задан GAMEHOST_API_KEY "
-        "в Environment Variables"
-    )
-
 
 # =========================================================
-# КАРТИНКА
+# 5. КАРТИНКА
 # =========================================================
 
 SERVER_IMAGE_URL = (
@@ -53,17 +50,14 @@ SERVER_IMAGE_URL = (
 
 
 # =========================================================
-# RENDER
+# 6. RENDER PORT
 # =========================================================
 
-# Render автоматически предоставляет эту переменную
-RENDER_URL = os.environ.get(
-    "RENDER_EXTERNAL_URL",
-    ""
-).rstrip("/")
+# Render передаёт PORT автоматически.
+# Если переменной нет — используется 10000.
 
+import os
 
-# Render автоматически предоставляет PORT
 PORT = int(
     os.environ.get(
         "PORT",
@@ -72,10 +66,12 @@ PORT = int(
 )
 
 
-# Секрет Telegram Webhook
-WEBHOOK_SECRET = os.environ.get(
-    "WEBHOOK_SECRET",
-    "oldcsinua_webhook_2026"
+# =========================================================
+# TELEGRAM BOT
+# =========================================================
+
+bot = telebot.TeleBot(
+    TELEGRAM_TOKEN
 )
 
 
@@ -96,18 +92,17 @@ def get_server_status():
     try:
 
         print(
-            "[GAMEHOST API] Запрашиваем статус "
-            f"сервера ID={SERVER_ID}"
+            "[GAMEHOST] Запрос статуса сервера..."
         )
 
         response = requests.get(
             url,
             params=params,
-            timeout=(3, 5)
+            timeout=5
         )
 
         print(
-            "[GAMEHOST API] HTTP status:",
+            "[GAMEHOST] HTTP:",
             response.status_code
         )
 
@@ -116,40 +111,47 @@ def get_server_status():
         data = response.json()
 
         print(
-            "[GAMEHOST API] JSON получен"
+            "[GAMEHOST] JSON получен"
         )
 
-        # -------------------------------------------------
-        # Проверяем online
-        # -------------------------------------------------
 
-        if not data.get("online", False):
+        # =================================================
+        # ПРОВЕРЯЕМ ONLINE
+        # =================================================
+
+        if not data.get(
+            "online",
+            False
+        ):
 
             print(
-                "[GAMEHOST API] Сервер OFFLINE"
+                "[GAMEHOST] Сервер OFFLINE"
             )
 
             return None
 
 
-        # -------------------------------------------------
-        # Получаем info
-        # -------------------------------------------------
+        # =================================================
+        # ДАННЫЕ СЕРВЕРА
+        # =================================================
 
         info = data.get(
             "info",
             {}
         )
 
+
         game_map = info.get(
             "map",
             "Неизвестно"
         )
 
+
         players = info.get(
             "activeplayers",
             0
         )
+
 
         max_players = info.get(
             "maxplayers",
@@ -157,33 +159,56 @@ def get_server_status():
         )
 
 
-        # -------------------------------------------------
-        # Приводим значения к числам
-        # -------------------------------------------------
+        # =================================================
+        # ПРОВЕРЯЕМ ЧИСЛА
+        # =================================================
 
         try:
-            players = int(players)
-        except (ValueError, TypeError):
+
+            players = int(
+                players
+            )
+
+        except (
+            ValueError,
+            TypeError
+        ):
+
             players = 0
 
+
         try:
-            max_players = int(max_players)
-        except (ValueError, TypeError):
+
+            max_players = int(
+                max_players
+            )
+
+        except (
+            ValueError,
+            TypeError
+        ):
+
             max_players = 32
 
 
         result = {
+
             "map": game_map,
+
             "players": players,
+
             "max_players": max_players
+
         }
 
 
         print(
-            "[GAMEHOST API] "
-            f"Карта={game_map}, "
-            f"Игроки={players}/{max_players}"
+            "[GAMEHOST] "
+            f"Карта: {game_map} | "
+            f"Игроки: "
+            f"{players}/{max_players}"
         )
+
 
         return result
 
@@ -191,7 +216,8 @@ def get_server_status():
     except requests.exceptions.Timeout:
 
         print(
-            "[GAMEHOST API] ОШИБКА: timeout"
+            "[GAMEHOST] "
+            "ОШИБКА: timeout"
         )
 
         return None
@@ -200,7 +226,7 @@ def get_server_status():
     except requests.exceptions.ConnectionError as e:
 
         print(
-            "[GAMEHOST API] "
+            "[GAMEHOST] "
             f"ОШИБКА соединения: {e}"
         )
 
@@ -210,18 +236,8 @@ def get_server_status():
     except requests.exceptions.HTTPError as e:
 
         print(
-            "[GAMEHOST API] "
+            "[GAMEHOST] "
             f"HTTP ошибка: {e}"
-        )
-
-        return None
-
-
-    except requests.exceptions.RequestException as e:
-
-        print(
-            "[GAMEHOST API] "
-            f"Ошибка запроса: {e}"
         )
 
         return None
@@ -230,7 +246,7 @@ def get_server_status():
     except ValueError as e:
 
         print(
-            "[GAMEHOST API] "
+            "[GAMEHOST] "
             f"Ошибка JSON: {e}"
         )
 
@@ -240,7 +256,7 @@ def get_server_status():
     except Exception as e:
 
         print(
-            "[GAMEHOST API] "
+            "[GAMEHOST] "
             f"Неизвестная ошибка: {e}"
         )
 
@@ -254,56 +270,68 @@ def get_server_status():
 @bot.message_handler(
     commands=["info"]
 )
-def send_server_info(message):
+def send_server_info(
+    message
+):
 
     print(
-        "[TELEGRAM] Получена команда /info "
-        f"от {message.from_user.id}"
+        "[TELEGRAM] Получена команда /info"
     )
 
 
-    # -----------------------------------------------------
-    # Получаем информацию через GameHost API
-    # -----------------------------------------------------
+    # =====================================================
+    # GAMEHOST API
+    # =====================================================
 
     info = get_server_status()
 
 
-    # -----------------------------------------------------
-    # ТЕКСТ НЕ МЕНЯЕМ
-    # -----------------------------------------------------
+    # =====================================================
+    # ТВОЙ ТЕКСТ
+    # =====================================================
 
     if info:
 
-        text = f"👑 <b>[OLD] SCHOOL ™</b>\n"
+        text = (
+            "👑 <b>[OLD] SCHOOL ™</b>\n"
+        )
+
         text += (
             f"🟢 <code>"
             f"{SERVER_IP}:{SERVER_PORT}"
             f"</code>\n"
         )
+
         text += (
             f"🗺 <b>Карта:</b> "
             f"{info['map']}\n"
         )
+
         text += (
             f"👥 <b>Игроки:</b> "
             f"{info['players']}/"
             f"{info['max_players']}\n"
         )
+
         text += (
-            f"🎮 <i>"
-            f"Заходи и покажи свой скилл!"
-            f"</i>"
+            "🎮 <i>"
+            "Заходи и покажи свой скилл!"
+            "</i>"
         )
+
 
     else:
 
-        text = f"👑 <b>[OLD] SCHOOL ™</b>\n"
+        text = (
+            "👑 <b>[OLD] SCHOOL ™</b>\n"
+        )
+
         text += (
             f"🔴 <code>"
             f"{SERVER_IP}:{SERVER_PORT}"
             f"</code>\n"
         )
+
         text += (
             "⚠️ <b>"
             "Сервер временно недоступен "
@@ -312,9 +340,9 @@ def send_server_info(message):
         )
 
 
-    # -----------------------------------------------------
-    # Отправляем картинку
-    # -----------------------------------------------------
+    # =====================================================
+    # ОТПРАВЛЯЕМ КАРТИНКУ
+    # =====================================================
 
     try:
 
@@ -327,22 +355,21 @@ def send_server_info(message):
         )
 
         print(
-            "[TELEGRAM] /info успешно отправлен"
+            "[TELEGRAM] /info отправлен"
         )
 
 
     except Exception as e:
 
         print(
-            "[TELEGRAM] Ошибка отправки "
-            f"картинки: {e}"
+            "[TELEGRAM] "
+            f"Ошибка отправки картинки: {e}"
         )
 
 
-        # -------------------------------------------------
-        # Если картинка не отправилась —
-        # отправляем обычный текст
-        # -------------------------------------------------
+        # =================================================
+        # ЕСЛИ КАРТИНКА НЕ ОТПРАВИЛАСЬ
+        # =================================================
 
         try:
 
@@ -354,19 +381,21 @@ def send_server_info(message):
             )
 
             print(
-                "[TELEGRAM] Текстовый ответ отправлен"
+                "[TELEGRAM] "
+                "Текстовый ответ отправлен"
             )
+
 
         except Exception as e2:
 
             print(
-                "[TELEGRAM] Ошибка отправки "
-                f"текста: {e2}"
+                "[TELEGRAM] "
+                f"Ошибка отправки текста: {e2}"
             )
 
 
 # =========================================================
-# WEB SERVER
+# HTTP SERVER ДЛЯ RENDER
 # =========================================================
 
 class WebServer(
@@ -374,36 +403,23 @@ class WebServer(
 ):
 
 
-    # -----------------------------------------------------
-    # Отключаем стандартный шум HTTP-сервера
-    # -----------------------------------------------------
-
-    def log_message(
-        self,
-        format,
-        *args
-    ):
-
-        print(
-            "[HTTP]",
-            format % args
-        )
-
-
     # =====================================================
     # GET
     # =====================================================
 
-    def do_GET(self):
-
+    def do_GET(
+        self
+    ):
 
         # -------------------------------------------------
-        # Главная страница
+        # Главная
         # -------------------------------------------------
 
         if self.path == "/":
 
-            self.send_response(200)
+            self.send_response(
+                200
+            )
 
             self.send_header(
                 "Content-Type",
@@ -420,16 +436,18 @@ class WebServer(
 
 
         # -------------------------------------------------
-        # Health check
+        # Health
         # -------------------------------------------------
 
         if self.path == "/health":
 
-            self.send_response(200)
+            self.send_response(
+                200
+            )
 
             self.send_header(
                 "Content-Type",
-                "application/json; charset=utf-8"
+                "application/json"
             )
 
             self.end_headers()
@@ -442,10 +460,12 @@ class WebServer(
 
 
         # -------------------------------------------------
-        # Неизвестный адрес
+        # 404
         # -------------------------------------------------
 
-        self.send_response(404)
+        self.send_response(
+            404
+        )
 
         self.end_headers()
 
@@ -454,169 +474,35 @@ class WebServer(
     # HEAD
     # =====================================================
 
-    def do_HEAD(self):
+    def do_HEAD(
+        self
+    ):
 
-        self.send_response(200)
+        self.send_response(
+            200
+        )
 
         self.end_headers()
 
 
     # =====================================================
-    # POST — TELEGRAM WEBHOOK
+    # LOG
     # =====================================================
 
-    def do_POST(self):
-
-
-        # -------------------------------------------------
-        # Проверяем URL webhook
-        # -------------------------------------------------
-
-        if not self.path.startswith(
-            "/telegram-webhook"
-        ):
-
-            self.send_response(404)
-
-            self.end_headers()
-
-            return
-
-
-        # -------------------------------------------------
-        # Проверяем секрет Telegram
-        # -------------------------------------------------
-
-        received_secret = self.headers.get(
-            "X-Telegram-Bot-Api-Secret-Token"
-        )
-
-
-        if received_secret != WEBHOOK_SECRET:
-
-            print(
-                "[SECURITY] "
-                "Неверный webhook secret"
-            )
-
-            self.send_response(403)
-
-            self.end_headers()
-
-            return
-
-
-        try:
-
-            # -------------------------------------------------
-            # Читаем тело запроса
-            # -------------------------------------------------
-
-            content_length = int(
-                self.headers.get(
-                    "Content-Length",
-                    "0"
-                )
-            )
-
-
-            body = self.rfile.read(
-                content_length
-            )
-
-
-            # -------------------------------------------------
-            # JSON от Telegram
-            # -------------------------------------------------
-
-            json_string = body.decode(
-                "utf-8"
-            )
-
-
-            update = (
-                telebot.types.Update
-                .de_json(json_string)
-            )
-
-
-            print(
-                "[WEBHOOK] Получен update:",
-                update.update_id
-            )
-
-
-            # -------------------------------------------------
-            # Обрабатываем update отдельно
-            # -------------------------------------------------
-
-            threading.Thread(
-                target=process_update,
-                args=(update,),
-                daemon=True
-            ).start()
-
-
-            # -------------------------------------------------
-            # Быстро отвечаем Telegram
-            # -------------------------------------------------
-
-            self.send_response(200)
-
-            self.end_headers()
-
-            self.wfile.write(
-                b"OK"
-            )
-
-
-        except Exception as e:
-
-            print(
-                "[WEBHOOK] Ошибка:",
-                e
-            )
-
-
-            # Telegram получит 200,
-            # чтобы не повторять update бесконечно
-
-            self.send_response(200)
-
-            self.end_headers()
-
-            self.wfile.write(
-                b"OK"
-            )
-
-
-# =========================================================
-# ОБРАБОТКА TELEGRAM UPDATE
-# =========================================================
-
-def process_update(update):
-
-    try:
-
-        bot.process_new_updates(
-            [update]
-        )
+    def log_message(
+        self,
+        format,
+        *args
+    ):
 
         print(
-            "[WEBHOOK] Update обработан:",
-            update.update_id
-        )
-
-    except Exception as e:
-
-        print(
-            "[WEBHOOK] Ошибка обработки:",
-            e
+            "[HTTP]",
+            format % args
         )
 
 
 # =========================================================
-# ЗАПУСК HTTP СЕРВЕРА
+# HTTP SERVER
 # =========================================================
 
 def run_web_server():
@@ -631,7 +517,7 @@ def run_web_server():
 
 
     print(
-        "[HTTP] Web server запущен "
+        "[HTTP] Сервер запущен "
         f"на порту {PORT}"
     )
 
@@ -640,74 +526,40 @@ def run_web_server():
 
 
 # =========================================================
-# TELEGRAM WEBHOOK
+# TELEGRAM POLLING
 # =========================================================
 
-def setup_webhook():
+def run_bot():
 
-
-    # -----------------------------------------------------
-    # Проверяем URL Render
-    # -----------------------------------------------------
-
-    if not RENDER_URL:
-
-        print(
-            "[WEBHOOK] ОШИБКА: "
-            "RENDER_EXTERNAL_URL отсутствует"
-        )
-
-        return
-
-
-    webhook_url = (
-        f"{RENDER_URL}"
-        f"/telegram-webhook"
+    print(
+        "[BOT] Запускаю Telegram polling..."
     )
 
 
-    try:
+    while True:
 
-        # -------------------------------------------------
-        # Удаляем старый webhook
-        # -------------------------------------------------
+        try:
 
-        bot.remove_webhook()
-
-        print(
-            "[WEBHOOK] Старый webhook удалён"
-        )
+            bot.infinity_polling(
+                timeout=30,
+                long_polling_timeout=30,
+                skip_pending=True
+            )
 
 
-        # -------------------------------------------------
-        # Устанавливаем новый
-        # -------------------------------------------------
+        except Exception as e:
 
-        result = bot.set_webhook(
-            url=webhook_url,
-            secret_token=WEBHOOK_SECRET,
-            drop_pending_updates=True
-        )
+            print(
+                "[BOT] "
+                f"Polling ошибка: {e}"
+            )
 
+            print(
+                "[BOT] "
+                "Перезапуск через 5 секунд..."
+            )
 
-        print(
-            "[WEBHOOK] Установлен:",
-            result
-        )
-
-
-        print(
-            "[WEBHOOK] URL:",
-            webhook_url
-        )
-
-
-    except Exception as e:
-
-        print(
-            "[WEBHOOK] Ошибка установки:",
-            e
-        )
+            time.sleep(5)
 
 
 # =========================================================
@@ -717,20 +569,20 @@ def setup_webhook():
 if __name__ == "__main__":
 
     print(
-        "======================================"
+        "========================================"
     )
 
     print(
-        "      OLDCS TELEGRAM BOT"
+        "       OLDCS TELEGRAM BOT"
     )
 
     print(
-        "======================================"
+        "========================================"
     )
 
 
     print(
-        "[CONFIG] Server:",
+        "[CONFIG] CS Server:",
         f"{SERVER_IP}:{SERVER_PORT}"
     )
 
@@ -742,20 +594,14 @@ if __name__ == "__main__":
 
 
     print(
-        "[CONFIG] Render URL:",
-        RENDER_URL or "НЕ НАЙДЕН"
-    )
-
-
-    print(
-        "[CONFIG] Port:",
+        "[CONFIG] Render PORT:",
         PORT
     )
 
 
-    # -----------------------------------------------------
-    # Запускаем HTTP
-    # -----------------------------------------------------
+    # =====================================================
+    # HTTP SERVER
+    # =====================================================
 
     web_thread = threading.Thread(
         target=run_web_server,
@@ -765,57 +611,8 @@ if __name__ == "__main__":
     web_thread.start()
 
 
-    # -----------------------------------------------------
-    # Даём HTTP серверу запуститься
-    # -----------------------------------------------------
+    # =====================================================
+    # TELEGRAM BOT
+    # =====================================================
 
-    time.sleep(1)
-
-
-    # -----------------------------------------------------
-    # Устанавливаем Telegram webhook
-    # -----------------------------------------------------
-
-    setup_webhook()
-
-
-    print(
-        "======================================"
-    )
-
-    print(
-        "[BOT] Бот успешно запущен!"
-    )
-
-    print(
-        "[BOT] Webhook активен."
-    )
-
-    print(
-        "======================================"
-    )
-
-
-    # -----------------------------------------------------
-    # Держим основной процесс живым
-    # -----------------------------------------------------
-
-    try:
-
-        while True:
-
-            time.sleep(60)
-
-    except KeyboardInterrupt:
-
-        print(
-            "[BOT] Остановка..."
-        )
-
-        try:
-
-            bot.remove_webhook()
-
-        except Exception:
-
-            pass
+    run_bot()
